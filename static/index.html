@@ -1,0 +1,1205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Assistant</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--line:#262b36;--text:#e6e8ee;--muted:#8b93a7;--acc:#7aa2ff;--warn:#ff7a7a;--ok:#5fd4a0;--amber:#f5c26b}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{display:grid;height:100dvh;grid-template-rows:auto 1fr auto;grid-template-areas:"h" "m" "n"}
+header{grid-area:h;display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line)}
+header h1{font-size:16px;margin:0;flex:1}
+main{grid-area:m;display:flex;min-height:0;overflow:hidden}
+nav{grid-area:n;display:flex;background:var(--panel);border-top:1px solid var(--line)}
+nav button{flex:1;position:relative;padding:10px 4px calc(10px + env(safe-area-inset-bottom));background:none;border:0;color:var(--muted);font:inherit;font-size:12px;cursor:pointer}
+nav button.on{color:var(--acc)}
+.badge{position:absolute;top:4px;margin-left:2px;background:var(--warn);color:#fff;border-radius:999px;font-size:10px;padding:0 5px}
+.badge:empty{display:none}
+section{display:none;flex:1;flex-direction:column;min-width:0;min-height:0;overflow:auto;padding:16px;max-width:900px;margin:0 auto}
+section.on{display:flex}
+#chat{overflow:hidden;padding-bottom:0}
+#msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-bottom:10px}
+.msg{max-width:88%;padding:10px 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line);overflow-wrap:anywhere}
+.msg.user{align-self:flex-end;background:#1f2a44;border-color:#2c3b61}
+.msg pre{background:#0b0d12;padding:8px;border-radius:8px;overflow:auto}
+.msg code{font-family:ui-monospace,Menlo,monospace;font-size:13px}
+.msg h4{margin:8px 0 4px}.msg li{margin-left:18px}
+.tool{font:12px ui-monospace,Menlo,monospace;color:var(--muted);align-self:flex-start;max-width:100%}
+.tool pre{white-space:pre-wrap;max-height:300px;overflow:auto}
+.meta{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:none;cursor:pointer}
+form.send{display:flex;gap:8px;padding:10px 0 12px;border-top:1px solid var(--line)}
+input,textarea,select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit;font-size:16px}
+form.send textarea{resize:none;height:44px;max-height:160px}
+.btn{background:var(--acc);color:#0b0d12;border:0;border-radius:8px;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer;white-space:nowrap}
+.ghost{background:none;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer;white-space:nowrap}
+.btn:disabled,.ghost:disabled{opacity:.5}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;overflow-wrap:anywhere}
+.card pre{overflow:auto;max-width:100%}
+.click{cursor:pointer}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>*:first-child{flex:1}
+.muted{color:var(--muted)}.small{font-size:12px}
+.st{font-size:11px;border-radius:999px;padding:1px 8px;border:1px solid var(--line)}
+.st.active{color:var(--ok)}.st.stalled{color:var(--amber)}.st.done,.st.paused{color:var(--muted)}
+.due{border-color:var(--warn)}
+h2{font-size:15px;margin:18px 0 8px}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+.sheet{position:fixed;inset:0;background:var(--bg);overflow:auto;padding:16px;display:none;z-index:10}
+.sheet.on{display:block}.sheet>div{max-width:900px;margin:0 auto}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);color:#0b0d12;padding:8px 14px;border-radius:8px;display:none;z-index:20;max-width:90vw}
+.bar{height:6px;background:var(--line);border-radius:3px;margin:4px 0 10px}.bar i{display:block;height:100%;background:var(--acc);border-radius:3px}
+#csheet.on{display:flex}#csheet>div{display:flex;flex-direction:column;height:100%;width:100%}
+#cevents{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:8px 0}
+#ssheet.on{display:block}
+#spane{height:45vh;overflow:auto;background:#0b0d12;padding:8px;border-radius:8px;font:12px/1.35 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:0}
+[hidden]{display:none!important}
+#terminal{max-width:none;overflow:hidden;padding-bottom:8px}
+#tmain{flex:1;display:flex;flex-direction:column;min-height:0;gap:6px}
+#ttabs,#tkeys{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+#tbox{flex:1;min-height:0;background:#0b0d12;border-radius:8px;padding:4px;overflow:hidden}
+#tdisc{background:var(--panel);border:1px solid var(--warn);border-radius:8px;padding:8px;text-align:center;cursor:pointer}
+.chip.on{color:var(--acc);border-color:var(--acc)}
+@media(max-width:420px){nav button{font-size:10px;padding-left:0;padding-right:0}}
+@media(min-width:800px){
+  body{grid-template-columns:170px 1fr;grid-template-rows:auto 1fr;grid-template-areas:"h h" "n m"}
+  nav{flex-direction:column;border-top:0;border-right:1px solid var(--line)}
+  nav button{flex:none;text-align:left;padding:12px 16px;font-size:14px}
+  .badge{position:static}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧠 Assistant</h1>
+  <button class="chip" id="model" onclick="refreshStatus()">…</button>
+  <button class="chip" onclick="logout()">Log out</button>
+</header>
+<main>
+  <section id="chat">
+    <div class="row" style="margin-bottom:8px">
+      <select id="convs" onchange="openConv(+this.value)"></select>
+      <button class="ghost" onclick="newConv()">＋ New</button>
+    </div>
+    <div id="msgs"></div>
+    <form class="send" onsubmit="send(event)">
+      <textarea id="input" placeholder="Message, idea, or ask about a project…"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!matchMedia('(pointer:coarse)').matches){send(event)}"></textarea>
+      <button class="btn" id="sendbtn">Send</button>
+    </form>
+  </section>
+
+  <section id="projects">
+    <div class="row"><h2>Projects</h2><button class="ghost" onclick="newProject()">＋ Project</button></div>
+    <div id="plist"></div>
+  </section>
+  <section id="claude">
+    <h2>Claude usage</h2>
+    <div id="cusage"></div>
+    <h2>Sessions</h2>
+    <div id="clist"></div>
+  </section>
+
+  <section id="services">
+    <div class="row"><h2>Services</h2>
+      <button class="ghost" onclick="importServices()">Import</button>
+      <button class="ghost" onclick="addService()">＋ Service</button></div>
+    <div id="sgpu"></div>
+    <div id="simport"></div>
+    <div id="slist"></div>
+  </section>
+
+  <section id="repos">
+    <div class="row"><h2>Repos</h2><button class="ghost" onclick="addRepo()">＋ Repo</button></div>
+    <div id="rlist2"></div>
+  </section>
+
+  <section id="terminal">
+    <div id="tlock" hidden>
+      <h2>Unlock terminal</h2>
+      <p class="muted small">A full shell on this server. Locks again after 30 minutes without activity.</p>
+      <form class="row" onsubmit="unlockTerm(event)">
+        <input type="password" id="tpw" placeholder="Password" autocomplete="current-password">
+        <button class="btn">Unlock</button></form>
+    </div>
+    <div id="tmain" hidden>
+      <div id="ttabs"></div>
+      <div id="tdisc" hidden onclick="loadTerminal()">Disconnected — tap to reconnect</div>
+      <div id="tbox"></div>
+      <div id="tkeys">
+        <button class="chip" data-k="esc">Esc</button><button class="chip" data-k="tab">Tab</button>
+        <button class="chip" id="tctrl" data-k="ctrl">Ctrl</button>
+        <button class="chip" data-k="up">↑</button><button class="chip" data-k="down">↓</button>
+        <button class="chip" data-k="left">←</button><button class="chip" data-k="right">→</button>
+        <button class="chip" data-k="c">Ctrl-C</button><button class="chip" data-k="d">Ctrl-D</button>
+        <button class="chip" data-k="paste">Paste</button>
+        <button class="chip" onclick="lockTerm()">🔒 Lock</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="ideas">
+  <form class="row" onsubmit="addIdea(event)" style="margin-bottom:12px">
+      <input id="ideatext" placeholder="Quick idea…"><button class="btn">Add</button>
+    </form>
+    <div class="row" style="margin-bottom:8px">
+      <h2>Ideas</h2>
+      <select id="istatus" onchange="loadIdeas()" style="width:auto"><option>inbox</option><option>promoted</option><option>dropped</option></select>
+    </div>
+    <div id="ilist"></div>
+  </section>
+
+  <section id="memory">
+    <h2>Profile</h2>
+    <textarea id="profile" rows="5" placeholder="What the assistant knows about you (rewritten nightly, editable)"></textarea>
+    <div class="row" style="margin-top:8px"><span></span><button class="ghost" onclick="saveProfile()">Save profile</button></div>
+    <h2>Memories</h2>
+    <form class="row" onsubmit="addMemory(event)"><input id="memnew" placeholder="Add a memory…"><button class="btn">Add</button></form>
+    <input id="memq" placeholder="Search by meaning…" style="margin:10px 0"
+      oninput="clearTimeout(this.t);this.t=setTimeout(loadMemory,400)">
+    <div id="mlist"></div>
+  </section>
+
+  <section id="today">
+    <h2>Reminders</h2>
+    <form class="row" onsubmit="addReminder(event)">
+      <input id="remtext" placeholder="Remind me to…">
+      <input id="remwhen" type="datetime-local" style="width:auto">
+      <button class="btn">Add</button>
+    </form>
+    <div id="rlist" style="margin-top:10px"></div>
+    <h2>What to work on now</h2><div id="work"></div>
+    <h2>Recaps</h2><div id="recaps"></div>
+    <h2>Claude history sync</h2>
+    <div class="card row"><span class="muted small" id="syncinfo"></span><button class="ghost" onclick="syncNow(this)">Sync now</button></div>
+  </section>
+</main>
+<nav>
+  <button data-v="chat" onclick="show('chat')">💬 Chat</button>
+  <button data-v="projects" onclick="show('projects')">📁 Projects</button>
+  <button data-v="claude" onclick="show('claude')">🤖 Claude</button>
+  <button data-v="services" onclick="show('services')">⚙️ Services</button>
+  <button data-v="repos" onclick="show('repos')">🐙 Repos</button>
+  <button data-v="terminal" onclick="show('terminal')">🖥️ Terminal</button>
+  <button data-v="ideas" onclick="show('ideas')">💡 Ideas</button>
+  <button data-v="memory" onclick="show('memory')">🧠 Memory</button>
+  <button data-v="today" onclick="show('today')">📅 Today<span class="badge" id="duebadge"></span></button>
+</nav>
+<div class="sheet" id="pdetail"><div id="pbody"></div></div>
+<div class="sheet" id="csheet"><div>
+  <div class="row"><b id="ctitle"></b><span class="chip" id="cstatus"></span>
+    <button class="ghost" onclick="stopSession()">■ Stop</button>
+    <button class="ghost" onclick="closeSession()">✕ Close</button></div>
+  <div id="cevents"></div>
+  <form class="send" onsubmit="sendToSession(event)">
+    <textarea id="cinput" placeholder="Message Claude in this session…"></textarea>
+    <button class="btn">Send</button>
+  </form>
+</div></div>
+<div class="sheet" id="ssheet"><div>
+  <div class="row"><b id="stitle"></b><span class="chip" id="sstate"></span>
+    <button class="ghost" onclick="closeService()">✕ Close</button></div>
+  <div class="row" style="margin:8px 0">
+    <button class="btn svc-m" onclick="svcAct('start')">▶ Start</button>
+    <button class="ghost svc-m" onclick="svcAct('restart')">↻ Restart</button>
+    <button class="ghost svc-m" onclick="svcAct('stop')">■ Stop</button>
+    <button class="ghost" onclick="svcSummarize()">Summarize</button>
+    <button class="ghost svc-m" onclick="svcInvestigate()">Investigate</button>
+    <button class="ghost svc-m" onclick="svcChange()">Change config</button>
+  </div>
+  <pre id="spane"></pre>
+  <form class="send" id="sform" onsubmit="svcSend(event)">
+    <input id="sinput" placeholder="Type a command for this pane…">
+    <button class="ghost" type="button" onclick="svcCtrlC()">Ctrl-C</button>
+    <button class="btn">Send</button>
+  </form>
+  <div id="sinfo"></div>
+  <h2>Config changes</h2><div id="schanges"></div>
+</div></div>
+<div class="sheet" id="rsheet"><div>
+  <div class="row"><b id="rtitle"></b><span class="chip" id="rstate"></span>
+    <button class="ghost" onclick="closeRepo()">✕ Close</button></div>
+  <div class="row" style="margin:8px 0">
+    <button class="ghost" onclick="repoAct('test')">▶ Run tests</button>
+    <button class="ghost" onclick="repoAct('pull')">⤓ Pull</button>
+    <button class="ghost" onclick="repoAct('push')">⤒ Push main</button>
+    <button class="ghost" onclick="repoAct('undo-merge')">↶ Undo merge</button>
+  </div>
+  <div id="rinfo"></div>
+  <form class="send" onsubmit="newRepoTask(event)"><input id="rtask" placeholder="Describe a change for Claude…"><button class="btn">Start task</button></form>
+  <h2>Test suite</h2><div id="rsuite"></div>
+  <h2>Tasks</h2><div id="rtasks"></div>
+  <h2>Test runs</h2><div id="rruns"></div>
+</div></div>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let TZ = 'Asia/Kolkata', conv = null, busy = false, loadedP = {};
+
+function toast(msg, ok = false) {
+  const t = $('#toast');
+  t.textContent = msg; t.style.background = ok ? 'var(--ok)' : 'var(--warn)'; t.style.display = 'block';
+  clearTimeout(t.h); t.h = setTimeout(() => t.style.display = 'none', 4000);
+}
+
+async function api(path, opts = {}) {
+  const init = {method: opts.method || 'GET', headers: {'Content-Type': 'application/json'}};
+  if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
+  const r = await fetch(path, init);
+  if (r.status === 401) { location = '/login'; throw new Error('login required'); }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { const m = data.detail || r.statusText; toast(m); throw new Error(m); }
+  return data;
+}
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+
+function md(src) {
+  const blocks = [];
+  let s = esc(src).replace(/```[\w-]*\n?([\s\S]*?)```/g, (_, code) => `\u0000${blocks.push(code) - 1}\u0000`);
+  s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
+    .replace(/^#{1,6} (.*)$/gm, '<h4>$1</h4>')
+    .replace(/^\s*(?:[-*]|\d+\.) (.*)$/gm, '<li>$1</li>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\n/g, '<br>')
+    .replace(/(<\/li>|<\/h4>)<br>/g, '$1');
+  return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<pre><code>${blocks[i]}</code></pre>`);
+}
+
+const fmt = iso => iso ? new Date(iso).toLocaleString('en-IN', {timeZone: TZ, dateStyle: 'medium', timeStyle: 'short'}) : '';
+const daysAgo = iso => Math.floor((Date.now() - new Date(iso)) / 864e5);
+
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+  const ta = document.createElement('textarea');  // LAN is plain http: no Clipboard API
+  ta.value = text; document.body.append(ta); ta.select();
+  const ok = document.execCommand('copy'); ta.remove(); return ok;
+}
+
+// ---------- navigation ----------
+const loaders = {chat: loadChat, projects: loadProjects, claude: loadClaude, services: loadServices, repos: loadRepos, terminal: loadTerminal, ideas: loadIdeas, memory: loadMemory, today: loadToday};
+function show(v) {
+  if (!loaders[v]) v = 'chat';
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.querySelectorAll('main > section').forEach(s => s.classList.toggle('on', s.id === v));
+  history.replaceState(null, '', '#' + v);
+  loaders[v]().catch(e => console.error(e));
+}
+
+// ---------- chat ----------
+async function refreshConvs() {
+  const list = await api('/api/conversations');
+  $('#convs').innerHTML = list.map(c =>
+    `<option value="${c.id}" ${c.id === conv ? 'selected' : ''}>${esc(c.title)} · ${fmt(c.updated_at)}</option>`).join('');
+  return list;
+}
+async function loadChat() {
+  if (conv) return;
+  const list = await refreshConvs();
+  if (list[0] && Date.now() - new Date(list[0].updated_at) < 6 * 3600e3) await openConv(list[0].id);
+  else await newConv();
+}
+async function newConv() {
+  $('#msgs').innerHTML = '<div class="tool">Waking up…</div>';
+  const c = await api('/api/conversations', {method: 'POST'});
+  conv = c.id; $('#msgs').innerHTML = '';
+  addMsg('model', c.greeting); refreshConvs(); refreshStatus();
+}
+async function openConv(id) {
+  conv = id; $('#msgs').innerHTML = '';
+  for (const m of await api(`/api/conversations/${id}/messages`)) {
+    for (const t of (m.meta.tools || [])) addTool({name: t.name, args: t.args}, t.result);
+    addMsg(m.role === 'user' ? 'user' : 'model', m.content, m.meta);
+  }
+  refreshConvs();
+}
+function el(cls, html) { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; return d; }
+function place(node, before) {
+  before ? $('#msgs').insertBefore(node, before) : $('#msgs').append(node);
+  node.scrollIntoView({block: 'end'}); return node;
+}
+function addMsg(role, text, meta = {}, before) {
+  const d = el('msg ' + role, role === 'user' ? esc(text).replace(/\n/g, '<br>') : md(text));
+  const mems = meta.memories || [];
+  const chips = [];
+  if (mems.length) chips.push(`<button class="chip" onclick="this.parentNode.nextElementSibling.hidden^=1">🧠 ${mems.length} memories</button>`);
+  if (meta.model) chips.push(`<span class="chip">${esc(meta.model)}</span>`);
+  if (chips.length) d.append(el('meta', chips.join('')));
+  if (mems.length) { const l = el('small muted', mems.map(m => '• ' + esc(m.text)).join('<br>')); l.hidden = true; d.append(l); }
+  return place(d, before);
+}
+function toolLabel(ev) {
+  const a = ev.args || {};
+  if (ev.name === 'ask_claude_code') return `🔧 Claude Code in <b>${esc(a.project)}</b>: ${esc((a.prompt || '').slice(0, 120))} · <a href="#" class="watch" data-project="${esc(a.project)}">watch live</a>`;
+  if (ev.name === 'web_search') return `🔎 ${esc(a.query)}`;
+  return `🔧 ${esc(ev.name)}`;
+}
+function setToolResult(d, result) {
+  const body = result.error ? '⚠️ ' + result.error : (result.result ?? result.answer ?? JSON.stringify(result, null, 1));
+  d.insertAdjacentHTML('beforeend', `<details><summary>result</summary><pre>${esc(String(body).slice(0, 8000))}</pre></details>`);
+  if (result.blocked) d.insertAdjacentHTML('beforeend', blockedHtml(result));  // also shown for reopened history
+  if (result.action_id) d.insertAdjacentHTML('beforeend', actionHtml(result));
+  if (result.override && result.override.action_id) d.insertAdjacentHTML('beforeend', actionHtml(result.override));
+  if (result.change) d.insertAdjacentHTML('beforeend', changeCard({id: result.change, request: result.request, status: result.status,
+    diff: result.diff, explanation: result.explanation, flagged: result.flagged, result: {flags: result.flags || []}}));
+}
+function blockedHtml(r) {
+  const tool = String(r.tool || ''), args = JSON.stringify(r.args || {}).slice(0, 300);
+  return `<div class="row" style="margin-top:6px" data-tool="${esc(tool)}" data-args="${esc(args)}"><span class="small">Blocked for safety: ${esc(tool)} <span class="muted" style="overflow-wrap:anywhere">${esc(args)}</span> — check before allowing</span>
+    <button class="btn" onclick="allowBlocked(this)">Allow</button>
+    <button class="ghost" onclick="this.closest('.row').querySelectorAll('button').forEach(b => b.remove())">Dismiss</button></div>`;
+}
+function allowBlocked(btn) {
+  const row = btn.closest('.row');
+  row.querySelectorAll('button').forEach(b => b.remove());
+  row.insertAdjacentHTML('beforeend', '<span class="small muted">allowed</span>');
+  if (row.closest('#chat') && conv) postAuto(`[Allowed: run ${row.dataset.tool} with ${row.dataset.args} — go ahead]`);
+}
+function addTool(ev, result, before) {
+  const d = el('tool', toolLabel(ev));
+  if (result !== undefined) setToolResult(d, result);
+  return place(d, before);
+}
+function send(e) {
+  e.preventDefault();
+  const text = $('#input').value.trim();
+  if (!text || busy || !conv) return;
+  $('#input').value = '';
+  return sendText(text);
+}
+const autoQ = [];  // Confirm/Cancel reports waiting for the running turn to end
+function postAuto(text) { autoQ.push(text); if (!busy) sendText(autoQ.shift()); }
+async function sendText(text) {
+  busy = true; $('#sendbtn').disabled = true;
+  addMsg('user', text);
+  const status = place(el('tool', 'thinking…'));
+  const pending = [];
+  try {
+    const r = await fetch('/api/chat', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                        body: JSON.stringify({conversation_id: conv, text})});
+    if (r.status === 401) { location = '/login'; return; }
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = '', got = false;
+    for (;;) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+        if (!chunk.startsWith('data: ')) continue;
+        let ev;
+        try { ev = JSON.parse(chunk.slice(6)); } catch (e) { console.warn('bad frame', chunk); continue; }
+        if (ev.type === 'tool') pending.push(addTool(ev, undefined, status));
+        else if (ev.type === 'tool_result') { const d = pending.shift(); if (d) setToolResult(d, ev.result); }
+        else if (ev.type === 'answer') { got = true; addMsg('model', ev.text, ev, status); }
+        else if (ev.type === 'error') { got = true; addMsg('model', '⚠️ ' + ev.text, {}, status); }
+      }
+    }
+    if (!got) addMsg('model', '⚠️ Connection ended before an answer. If Claude Code was running, reopen this chat in a minute: the answer is saved when it finishes.', {}, status);
+  } catch (err) {
+    addMsg('model', `⚠️ ${err.message}. If Claude Code was running, reopen this chat in a minute: the answer is saved when it finishes.`, {}, status);
+  } finally {
+    status.remove(); busy = false; $('#sendbtn').disabled = false; refreshStatus(); refreshConvs();
+    if (autoQ.length) sendText(autoQ.shift());
+  }
+}
+
+// ---------- projects ----------
+const FIELDS = ['goal', 'next_step', 'notes', 'path', 'main_files'];
+async function loadProjects() {
+  const ps = await api('/api/projects');
+  $('#plist').innerHTML = ps.map(p => `<div class="card click" onclick="openProject(${p.id})">
+      <div class="row"><b>${esc(p.name)}</b><span class="st ${esc(p.status)}">${esc(p.status)}</span></div>
+      <div class="muted">${esc(p.next_step || p.goal || 'No next step yet')}</div>
+      <div class="muted small">${p.last_activity_at ? daysAgo(p.last_activity_at) + 'd since activity' : 'no activity'}${p.path ? ' · 📁 ' + esc(p.path) : ''}</div>
+    </div>`).join('') || '<p class="muted">No projects yet. They appear after the first Claude history sync, or add one.</p>';
+}
+async function openProject(id) {
+  const p = await api('/api/projects/' + id);
+  loadedP = {status: p.status};
+  for (const f of FIELDS) loadedP[f] = p[f] ?? '';
+  const field = f => `<label>${f.replace('_', ' ')}</label>` + (f === 'notes'
+    ? `<textarea id="pf_${f}" rows="5">${esc(p[f])}</textarea>` : `<input id="pf_${f}" value="${esc(p[f])}">`);
+  const list = (items, render) => items.map(render).join('') || '<p class="muted">None yet.</p>';
+  $('#pbody').innerHTML = `
+    <div class="row"><h2 style="margin:0">${esc(p.name)}</h2><button class="ghost" onclick="closeProject()">✕ Close</button></div>
+    <label>status</label><select id="pf_status">${['active', 'stalled', 'paused', 'done'].map(s =>
+      `<option ${s === p.status ? 'selected' : ''}>${s}</option>`).join('')}</select>
+    ${FIELDS.map(field).join('')}
+    <div class="row" style="margin-top:12px"><span></span>
+      <button class="ghost" onclick="resume(${p.id})">📋 Resume context</button>
+      <button class="btn" onclick="saveProject(${p.id})">Save</button></div>
+    <div id="resumebox"></div>
+    <h2>Decisions</h2>${list(p.decisions, d => `<div class="card"><div>${esc(d.text)}</div>
+      <div class="muted small">${esc(d.why)} · ${fmt(d.decided_at)} · ${esc(d.source)}</div></div>`)}
+    <h2>Links</h2>${list(p.links, l => `<div class="card"><a href="${/^https?:\/\//i.test(l.url) ? esc(l.url) : '#'}" target="_blank" rel="noopener">${esc(l.title || l.url)}</a>
+      <div class="small">${md(l.summary)}</div></div>`)}
+    <h2>Memories</h2>${list(p.memories, m => `<div class="card small">${esc(m.text)}</div>`)}
+    <h2>Claude Code runs</h2>${list(p.runs, r => `<div class="card"><div>${esc(r.prompt)}</div>
+      <div class="muted small">${fmt(r.created_at)} · ${r.duration_s}s · exit ${r.exit_code} · changed: ${esc(JSON.parse(r.files_changed || '[]').join(', ') || 'none')}</div>
+      <details><summary class="small">output</summary><pre class="small" style="white-space:pre-wrap">${esc(r.output)}</pre></details></div>`)}`;
+  $('#pdetail').classList.add('on');
+}
+function closeProject() { $('#pdetail').classList.remove('on'); loadProjects(); }
+async function saveProject(id) {
+  const body = {};
+  for (const f of ['status', ...FIELDS]) { const v = $('#pf_' + f).value; if (v !== loadedP[f]) body[f] = v; }
+  if (!Object.keys(body).length) return toast('No changes', true);
+  await api('/api/projects/' + id, {method: 'PATCH', body});
+  Object.assign(loadedP, body); toast('Saved', true);
+}
+async function resume(id) {
+  const {text} = await api(`/api/projects/${id}/resume`);
+  const ok = await copyText(text).catch(() => false);
+  $('#resumebox').innerHTML = `<label>${ok ? 'Copied to clipboard ✓' : 'Copy this:'}</label><textarea rows="10" readonly>${esc(text)}</textarea>`;
+}
+async function newProject() {
+  const name = prompt('Project name');
+  if (!name) return;
+  const path = prompt('Folder path on this machine (optional)') || undefined;
+  const r = await api('/api/projects', {method: 'POST', body: {name, path}});
+  await loadProjects(); openProject(r.id);
+}
+
+// ---------- ideas ----------
+async function loadIdeas() {
+  const st = $('#istatus').value;
+  const ideas = await api('/api/ideas?status=' + st);
+  $('#ilist').innerHTML = ideas.map(i => `<div class="card"><div>${esc(i.text)}</div>
+      <div class="muted small">${esc(i.tags)} ${fmt(i.created_at)}</div>
+      ${st === 'inbox' ? `<div class="row" style="margin-top:8px"><span></span>
+        <button class="ghost" onclick="related(${i.id})">Related</button>
+        <button class="ghost" onclick="setIdea(${i.id}, 'dropped')">Drop</button>
+        <button class="btn" onclick="promote(${i.id}, this)">Promote →</button></div>` : ''}
+      ${st === 'dropped' ? `<div class="row" style="margin-top:8px"><span></span>
+        <button class="ghost" onclick="setIdea(${i.id}, 'inbox')">Restore</button></div>` : ''}
+      <div id="rel${i.id}" class="small" style="margin-top:6px"></div></div>`).join('') || '<p class="muted">Nothing here.</p>';
+}
+async function addIdea(e) {
+  e.preventDefault();
+  const text = $('#ideatext').value.trim();
+  if (!text) return;
+  const r = await api('/api/ideas', {method: 'POST', body: {text}});
+  $('#ideatext').value = ''; $('#istatus').value = 'inbox';
+  await loadIdeas();
+  if (r.related?.length) showRelated(r.id, r.related);
+}
+async function setIdea(id, status) { await api('/api/ideas/' + id, {method: 'PATCH', body: {status}}); loadIdeas(); }
+async function promote(id, btn) {
+  btn.disabled = true; btn.textContent = 'Planning…';
+  try {
+    const r = await api(`/api/ideas/${id}/promote`, {method: 'POST'});
+    show('projects'); openProject(r.project_id);
+  } finally { btn.disabled = false; btn.textContent = 'Promote →'; }
+}
+async function related(id) { showRelated(id, await api(`/api/ideas/${id}/related`)); }
+function showRelated(id, items) {
+  const box = $('#rel' + id);
+  if (!box) return;
+  box.innerHTML = items.length
+    ? '<b>Related:</b> ' + items.map(r => `${r.type === 'project' ? '📁' : '💡'} ${esc(r.text.slice(0, 80))} (${Math.round(r.score * 100)}%)`).join(' · ')
+    : '<span class="muted">Nothing similar yet.</span>';
+}
+
+// ---------- memory ----------
+async function loadMemory() {
+  const [prof, mems] = await Promise.all([api('/api/profile'), api('/api/memories?q=' + encodeURIComponent($('#memq').value))]);
+  if (document.activeElement !== $('#profile')) $('#profile').value = prof.content || '';
+  $('#mlist').innerHTML = mems.map(m => `<div class="card"><div>${esc(m.text)}</div>
+      <div class="row small muted"><span>${esc(m.kind)}${m.source ? ' · ' + esc(m.source) : ''}${m.score ? ' · ' + Math.round(m.score * 100) + '%' : ''}</span>
+      <button class="ghost" onclick="editMemory(${m.id}, this)">Edit</button>
+      <button class="ghost" onclick="delMemory(${m.id})">Delete</button></div></div>`).join('') || '<p class="muted">No memories yet.</p>';
+}
+async function editMemory(id, btn) {
+  const cur = btn.closest('.card').firstElementChild.textContent;
+  const text = prompt('Edit memory', cur);
+  if (text && text !== cur) { await api('/api/memories/' + id, {method: 'PATCH', body: {text}}); loadMemory(); }
+}
+async function delMemory(id) {
+  if (confirm('Delete this memory?')) { await api('/api/memories/' + id, {method: 'DELETE'}); loadMemory(); }
+}
+async function addMemory(e) {
+  e.preventDefault();
+  const text = $('#memnew').value.trim();
+  if (!text) return;
+  await api('/api/memories', {method: 'POST', body: {text}});
+  $('#memnew').value = ''; loadMemory();
+}
+async function saveProfile() { await api('/api/profile', {method: 'PUT', body: {content: $('#profile').value}}); toast('Profile saved', true); }
+
+// ---------- today ----------
+function setBadge(rs) { const n = rs.filter(r => new Date(r.due_at) <= Date.now()).length; $('#duebadge').textContent = n || ''; }
+async function loadToday() {
+  const t = await api('/api/today');
+  $('#rlist').innerHTML = t.reminders.map(r => `<div class="card row ${new Date(r.due_at) <= Date.now() ? 'due' : ''}">
+      <span>${esc(r.text)}<br><span class="small muted">${fmt(r.due_at)}${r.project ? ' · ' + esc(r.project) : ''}</span></span>
+      <button class="ghost" onclick="doneReminder(${r.id})">✓ Done</button></div>`).join('') || '<p class="muted">No open reminders.</p>';
+  $('#work').innerHTML = t.work_on.map((p, i) => `<div class="card click" onclick="show('projects');openProject(${p.id})">
+      <b>${i + 1}. ${esc(p.name)}</b> <span class="muted small">${esc(p.reasons.join(' · '))}</span>
+      <div class="muted">${esc(p.next_step || '')}</div></div>`).join('') || '<p class="muted">No active projects.</p>';
+  $('#recaps').innerHTML = t.recaps.map(r => `<div class="card"><div class="muted small">${esc(r.period)} · ${esc(r.period_start)}</div>${md(r.content)}</div>`).join('')
+    || '<p class="muted">The first recap is written tonight at 02:00.</p>';
+  const st = await api('/api/status').catch(() => ({}));
+  $('#syncinfo').textContent = (t.next_sync ? 'Next auto-sync ' + fmt(t.next_sync) : 'Not synced yet')
+    + (st.sync_error ? ' · ⚠️ Last sync error: ' + st.sync_error : '');
+  setBadge(t.reminders);
+}
+async function doneReminder(id) { await api('/api/reminders/' + id, {method: 'PATCH', body: {done: true}}); loadToday(); }
+async function addReminder(e) {
+  e.preventDefault();
+  const text = $('#remtext').value.trim(), when = $('#remwhen').value;
+  if (!text || !when) return toast('Need text and a time');
+  await api('/api/reminders', {method: 'POST', body: {text, when}});
+  $('#remtext').value = ''; $('#remwhen').value = ''; loadToday();
+}
+async function syncNow(btn) {
+  btn.disabled = true; btn.textContent = 'Syncing…';
+  try {
+    const s = await api('/api/sync', {method: 'POST'});
+    toast(s.busy ? 'Sync already running' : `Synced ${s.processed}, unchanged ${s.skipped}, failed ${s.failed}, deferred ${s.deferred}`, true);
+  } finally { btn.disabled = false; btn.textContent = 'Sync now'; loadToday(); }
+}
+
+// ---------- claude sessions ----------
+let csrc = null, cs = {id: null, last: 0, tools: {}};
+const ST = {queued: 'queued', starting: 'starting…', running: '● running', idle: 'idle', closed: 'closed',
+            paused_limit: '⏸ paused', failed: '⚠ failed', stopped: 'stopped'};
+function usageHtml(u) {
+  const w = (u && u.unifiedWindows) || {};
+  const bar = (k, label) => {
+    if (!w[k]) return '';
+    const pct = Math.round((w[k].utilization || 0) * 100);
+    return `<div class="small">${label}: ${pct}%${w[k].resetsAt ? ' · resets ' + fmt(new Date(w[k].resetsAt * 1000).toISOString()) : ''}</div>` +
+           `<div class="bar"><i style="width:${Math.min(100, pct)}%"></i></div>`;
+  };
+  return (bar('five_hour', '5-hour') + bar('seven_day', 'Weekly')) || '<p class="muted small">Usage appears after the first Claude run.</p>';
+}
+function sessionCard(s) {
+  const ctl = s.status !== 'paused_limit' ? '' : `<div class="row" style="margin-top:8px" onclick="event.stopPropagation()">
+      <span class="small">${s.resume_scheduled ? '⏰ resumes' : 'resets'} ${fmt(s.resume_at)}${s.resume_estimated ? ' (estimated)' : ''}</span>
+      ${s.resume_scheduled ? `<button class="ghost" onclick="cancelResume(${s.id})">Cancel</button>`
+                           : `<button class="btn" onclick="resumeAtReset(${s.id})">Resume at reset</button>`}</div>`;
+  return `<div class="card click" onclick="openSession(${s.id})">
+    <div class="row"><b>${esc(s.project)}</b><span class="st">${esc(ST[s.status] || s.status)}</span></div>
+    <div class="muted small">#${s.id} · ${fmt(s.updated_at)}${s.pending_message ? ' · pending: ' + esc(s.pending_message.slice(0, 80)) : ''}</div>
+    ${s.status === 'failed' && s.last_error ? `<div class="small muted">${esc(s.last_error.slice(0, 160))}</div>` : ''}${ctl}</div>`;
+}
+async function loadClaude() {
+  const [rows, usage] = await Promise.all([api('/api/claude/sessions'), api('/api/claude/usage')]);
+  $('#cusage').innerHTML = usageHtml(usage);
+  $('#clist').innerHTML = rows.map(sessionCard).join('') || '<p class="muted">No Claude sessions yet. Ask about a project in chat.</p>';
+}
+function closeStream() { if (csrc) { csrc.close(); csrc = null; } }
+function openStream(id, after) {
+  closeStream();
+  csrc = new EventSource(`/api/claude/sessions/${id}/stream?after=${after}`);
+  csrc.onmessage = e => renderEvent(JSON.parse(e.data));
+  csrc.addEventListener('end', closeStream);
+}
+async function openSession(id) {
+  closeStream();
+  cs = {id, last: 0, tools: {}};
+  $('#cevents').innerHTML = '';
+  const s = (await api('/api/claude/sessions')).find(x => x.id === id) || {};
+  $('#ctitle').textContent = `${s.project || 'Claude'} · #${id}`;
+  $('#cstatus').textContent = ST[s.status] || s.status || '';
+  $('#csheet').classList.add('on');
+  openStream(id, 0);
+}
+function nearBottom() { const b = $('#cevents'); return b.scrollHeight - b.scrollTop - b.clientHeight < 80; }
+function toolLine(c) {
+  const i = c.input || {};
+  return `${c.name} ${i.file_path || i.command || i.pattern || i.path || i.url || i.description || ''}`.slice(0, 140);
+}
+function renderEvent(ev) {
+  if (ev.seq <= cs.last) return;
+  cs.last = ev.seq;
+  let p;
+  try { p = JSON.parse(ev.payload); } catch { p = {text: ev.payload}; }
+  const box = $('#cevents'), stick = nearBottom();
+  const add = (cls, html) => { const d = el(cls, html); box.append(d); if (stick) d.scrollIntoView({block: 'end'}); return d; };
+  if (p.truncated) { add('tool', `… ${esc(p.type)} event truncated`); return; }
+  if (ev.kind === 'user_turn') add('msg user', esc(p.text).replace(/\n/g, '<br>'));
+  else if (ev.kind === 'assistant') {
+    for (const c of (p.message && p.message.content) || []) {
+      if (c.type === 'text' && c.text) add('msg model', md(c.text));
+      else if (c.type === 'tool_use') cs.tools[c.id] = add('tool', `🔧 ${esc(toolLine(c))}`);
+    }
+  } else if (ev.kind === 'user') {
+    for (const c of (p.message && p.message.content) || []) {
+      const d = c.type === 'tool_result' && cs.tools[c.tool_use_id];
+      if (!d) continue;
+      const out = Array.isArray(c.content) ? c.content.map(x => x.text || '').join('\n') : String(c.content ?? '');
+      d.insertAdjacentHTML('beforeend', `<details><summary>output</summary><pre>${esc(out.slice(0, 8000))}</pre></details>`);
+    }
+  } else if (ev.kind === 'result') add('tool', `✔ turn done · ${Math.round((p.duration_ms || 0) / 1000)}s${p.is_error ? ' · error' : ''}`);
+  else if (ev.kind === 'status') {
+    $('#cstatus').textContent = ST[p.status] || p.status;
+    if (p.status === 'paused_limit') add('tool', `⏸ Usage limit reached · resets ${fmt(p.resume_at)}`);
+    if (p.status === 'failed' && p.last_error) add('tool', '⚠️ ' + esc(p.last_error));
+  } else if (ev.kind === 'system' && p.subtype === 'init') add('tool', `▶ Claude started${p.model ? ' · ' + esc(p.model) : ''}`);
+  else if (ev.kind !== 'rate_limit_event') add('tool', `· ${esc(ev.kind)}`);
+}
+async function sendToSession(e) {
+  e.preventDefault();
+  const text = $('#cinput').value.trim();
+  if (!text || !cs.id) return;
+  await api(`/api/claude/sessions/${cs.id}/send`, {method: 'POST', body: {text}});
+  $('#cinput').value = '';
+  if (!csrc) openStream(cs.id, cs.last);
+}
+async function stopSession() {
+  if (cs.id && confirm('Stop this Claude session?')) await api(`/api/claude/sessions/${cs.id}/stop`, {method: 'POST'});
+}
+function closeSession() { closeStream(); $('#csheet').classList.remove('on'); cs.id = null; loadClaude(); }
+async function resumeAtReset(id) {
+  await api(`/api/claude/sessions/${id}/resume-at-reset`, {method: 'POST', body: {}});
+  toast('Will resume after the reset', true); loadClaude();
+}
+async function cancelResume(id) { await api(`/api/claude/sessions/${id}/resume-at-reset`, {method: 'DELETE'}); loadClaude(); }
+async function watchLive(name) {
+  const n = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  for (let i = 0; i < 6; i++) {
+    const s = (await api('/api/claude/sessions')).find(r => n(r.project).includes(n(name)) || n(name).includes(n(r.project)));
+    if (s) { show('claude'); return openSession(s.id); }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  toast('No Claude session found for ' + name);
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('a.watch');
+  if (a) { e.preventDefault(); watchLive(a.dataset.project); }
+});
+setInterval(() => {
+  if ($('#claude').classList.contains('on') && !$('#csheet').classList.contains('on')) loadClaude().catch(() => {});
+}, 5000);
+
+// ---------- services ----------
+let svcCur = null, svcTimer = null, svcPoll = null, svcState = {};
+const enc = s => encodeURIComponent(s);
+function gpuHtml(g) {
+  if (!g || !g.total_mb) return '<p class="muted small">GPU: unavailable</p>';
+  const pct = Math.round(g.used_mb / g.total_mb * 100);
+  return `<div class="small">GPU ${(g.used_mb / 1024).toFixed(1)} / ${(g.total_mb / 1024).toFixed(1)} GB (${pct}%)</div>` +
+         `<div class="bar"><i style="width:${Math.min(100, pct)}%"></i></div>`;
+}
+function svcCard(s) {
+  const dot = s.alive ? (s.port_up === false ? '🟠' : '🟢') : '⚪';
+  const warn = s.should_run && (!s.alive || s.port_up === false) ? '<div class="small" style="color:var(--warn)">should be running but is down</div>' : '';
+  return `<div class="card click" data-svc="${esc(s.tmux_session)}">
+    <div class="row"><b>${dot} ${esc(s.name)}</b>${s.managed ? '' : '<span class="st">view only</span>'}
+      ${s.port ? `<span class="chip">:${Number(s.port)} ${s.port_up ? '✓' : '✗'}</span>` : ''}
+      ${s.gpu_mb ? `<span class="chip">${(s.gpu_mb / 1024).toFixed(1)} GB</span>` : ''}</div>
+    <div class="muted small">${esc(s.pane_command || 'stopped')} · tmux ${esc(s.tmux_session)}</div>
+    ${s.last_line ? `<div class="small muted" style="font-family:ui-monospace,monospace;overflow-wrap:anywhere">${esc(s.last_line)}</div>` : ''}${warn}</div>`;
+}
+async function loadServices() {
+  const st = await api('/api/services');
+  svcState = Object.fromEntries(st.services.map(s => [s.tmux_session, s]));
+  $('#sgpu').innerHTML = gpuHtml(st.gpu) + (st.error ? `<p class="small" style="color:var(--warn)">${esc(st.error)}</p>` : '');
+  const mine = st.services.filter(s => s.registered), other = st.services.filter(s => !s.registered);
+  $('#slist').innerHTML = (mine.map(svcCard).join('') || '<p class="muted">No services yet. Tap Import to add your run_*.sh scripts.</p>')
+    + (other.length ? '<h2>Other tmux sessions</h2>' + other.map(svcCard).join('') : '');
+}
+document.addEventListener('click', e => { const c = e.target.closest('[data-svc]'); if (c) openService(c.dataset.svc); });
+async function openService(session) {
+  svcCur = svcState[session] || {tmux_session: session, name: session, managed: false, registered: false};
+  $('#stitle').textContent = svcCur.name;
+  $('#sstate').textContent = svcCur.alive ? 'running' : 'stopped';
+  $('#sform').style.display = svcCur.managed ? '' : 'none';
+  document.querySelectorAll('#ssheet .svc-m').forEach(b => { b.disabled = !svcCur.managed; });
+  $('#sinfo').innerHTML = '';
+  $('#spane').textContent = 'loading…';
+  $('#ssheet').classList.add('on');
+  clearInterval(svcTimer); clearInterval(svcPoll);
+  const me = svcCur;
+  await refreshPane(true);
+  if (svcCur !== me) return;
+  svcTimer = setInterval(() => refreshPane(false), 2000);
+  loadChanges();
+}
+function closeService() { clearInterval(svcTimer); clearInterval(svcPoll); svcCur = null; $('#ssheet').classList.remove('on'); loadServices(); }
+async function refreshPane(force) {
+  if (!svcCur) return;
+  const me = svcCur, pane = $('#spane'), stick = force || pane.scrollHeight - pane.scrollTop - pane.clientHeight < 40;
+  try {
+    const r = await fetch(`/api/services/${enc(me.tmux_session)}/output?lines=300`);
+    const data = await r.json().catch(() => ({}));
+    if (svcCur !== me) return;
+    pane.textContent = r.ok ? data.output : (data.detail || 'not running');
+    if (stick) pane.scrollTop = pane.scrollHeight;
+  } catch {}
+}
+async function svcAct(action) {
+  if (!svcCur) return;
+  if (action !== 'start' && !confirm(`${action} ${svcCur.name}?`)) return;
+  $('#sinfo').innerHTML = `<p class="muted small">${action}…</p>`;
+  let r;
+  try { r = await api(`/api/services/${enc(svcCur.name)}/${action}`, {method: 'POST', body: {}}); }
+  catch { $('#sinfo').innerHTML = ''; return; }
+  if (r.gpu_blocked && confirm(`${r.error}\n\nStart anyway?`)) {
+    try { r = await api(`/api/services/${enc(svcCur.name)}/start`, {method: 'POST', body: {override_gpu: true}}); }
+    catch { $('#sinfo').innerHTML = ''; return; }
+  }
+  $('#sinfo').innerHTML = r.ok === false
+    ? `<p class="small" style="color:var(--warn)">${esc(r.error || 'failed')}</p>${r.tail ? `<pre class="small">${esc(r.tail)}</pre>` : ''}`
+    : `<p class="small muted">${esc(action)} done${r.started && r.started.length ? ' · started ' + esc(r.started.join(', ')) : ''}</p>`;
+  refreshPane(true);
+}
+async function svcSend(e) {
+  e.preventDefault();
+  const t = $('#sinput').value;
+  if (!t || !svcCur) return;
+  try { await api(`/api/services/${enc(svcCur.name)}/send`, {method: 'POST', body: {text: t}}); } catch { return; }
+  $('#sinput').value = '';
+  setTimeout(() => refreshPane(true), 400);
+}
+async function svcCtrlC() {
+  if (!svcCur || !confirm(`Send Ctrl-C to ${svcCur.name}?`)) return;
+  try { await api(`/api/services/${enc(svcCur.name)}/send`, {method: 'POST', body: {ctrl_c: true}}); } catch { return; }
+  setTimeout(() => refreshPane(true), 400);
+}
+async function svcSummarize() {
+  $('#sinfo').innerHTML = '<p class="muted small">Summarizing…</p>';
+  try {
+    const r = await api(`/api/services/${enc(svcCur.tmux_session)}/summarize`, {method: 'POST'});
+    $('#sinfo').innerHTML = `<div class="card">${md(r.summary || '')}</div>`;
+  } catch { $('#sinfo').innerHTML = ''; }
+}
+async function svcInvestigate() {
+  const q = prompt('What should Claude investigate?', 'Why is this service failing? Check the log and the code.');
+  if (!q) return;
+  $('#sinfo').innerHTML = '<p class="muted small">Claude is investigating… (you can also watch it in the Claude tab)</p>';
+  let r;
+  try { r = await api(`/api/services/${enc(svcCur.name)}/investigate`, {method: 'POST', body: {question: q}}); }
+  catch { $('#sinfo').innerHTML = ''; return; }
+  $('#sinfo').innerHTML = r.error ? `<p class="small" style="color:var(--warn)">${esc(r.error)}</p>`
+    : `<div class="card">${md(r.result || '')}${r.session ? `<div><button class="ghost" onclick="closeService();show('claude');openSession(${Number(r.session)})">Open Claude transcript</button></div>` : ''}</div>`;
+}
+function changeCard(c) {
+  const id = Number(c.id);
+  const undoBtn = `<button class="ghost" onclick="undoChange(${id})">Undo</button>`;
+  const btns = c.status === 'proposed' && !c.diff
+    ? `<span class="small muted">Review in the Services tab</span> ${undoBtn}`
+    : c.status === 'proposed'
+    ? `<button class="btn" ${c.flagged ? 'disabled title="flagged: review, then undo"' : ''} onclick="applyChange(${id})">Apply & restart</button> <button class="ghost" onclick="undoChange(${id})">Undo</button>`
+    : ['applied', 'no_change', 'failed', 'undone_partial'].includes(c.status) ? undoBtn : '';
+  const flags = ((c.result && c.result.flags) || []).map(f => `<div class="small" style="color:var(--warn)">⚠ ${esc(f)}</div>`).join('');
+  const also = ((c.result && c.result.also_changed) || []);
+  const alsoHtml = also.length ? `<details class="small muted"><summary>Also changed while Claude worked (probably the running service, not undone): ${also.length} file(s)</summary>${also.map(a => `<div>${esc(a.kind)}: ${esc(a.path)}</div>`).join('')}</details>` : '';
+  return `<div class="card"><div class="row"><b>#${id} ${esc(c.request || '')}</b><span class="st">${esc(c.status)}</span></div>${flags}${alsoHtml}
+    ${c.explanation ? `<div class="small">${md(String(c.explanation).slice(0, 1500))}</div>` : ''}
+    ${c.diff ? `<details ${c.status === 'proposed' ? 'open' : ''}><summary class="small">diff</summary><pre class="small">${esc(c.diff)}</pre></details>` : ''}
+    <div class="row" style="margin-top:6px"><span></span>${btns}</div></div>`;
+}
+async function loadChanges() {
+  if (!svcCur || !svcCur.registered) { $('#schanges').innerHTML = ''; return; }
+  const rows = await api(`/api/services/${enc(svcCur.name)}/changes`);
+  $('#schanges').innerHTML = rows.map(changeCard).join('') || '<p class="muted small">No changes yet.</p>';
+}
+function pollChange(id) {
+  clearInterval(svcPoll);
+  const me = svcCur;
+  const t = svcPoll = setInterval(async () => {
+    try {
+      const c = await api(`/api/changes/${id}`);
+      if (svcCur !== me) return clearInterval(t);
+      if (c.status !== 'running') { clearInterval(t); $('#sinfo').innerHTML = changeCard(c); loadChanges(); }
+    } catch { clearInterval(t); }
+  }, 3000);
+}
+async function svcChange() {
+  const me = svcCur;
+  const q = prompt(`What should change for ${me.name}?`, 'e.g. use Gemini as the LLM provider');
+  if (!q) return;
+  $('#sinfo').innerHTML = '<p class="muted small">Claude is preparing the change…</p>';
+  let c;
+  try { c = await api(`/api/services/${enc(me.name)}/change`, {method: 'POST', body: {request: q}}); }
+  catch { if (svcCur === me) $('#sinfo').innerHTML = ''; return; }
+  if (svcCur !== me) return;  // the user opened another service meanwhile
+  $('#sinfo').innerHTML = changeCard(c);
+  loadChanges();
+  if (c.status === 'running') pollChange(c.id);
+}
+async function applyChange(id) {
+  if (!confirm('Apply this change and restart the service?')) return;
+  const r = await api(`/api/changes/${id}/apply`, {method: 'POST'});
+  const failed = r.restart && r.restart.ok === false;
+  toast(failed ? 'Applied, but restart failed: ' + (r.restart.error || '') : 'Applied and restarted', !failed);
+  loadChanges();
+  refreshPane(true);
+}
+async function undoChange(id) {
+  if (!confirm('Undo this change (restore the original files)?')) return;
+  const r = await api(`/api/changes/${id}/undo`, {method: 'POST'});
+  const conf = (r.conflicts || []).length, left = (r.not_restored || []).length;
+  toast(conf ? `Undone, but ${conf} file(s) were edited since and kept: ${r.conflicts.join(', ')}`
+    : left ? `Undone, but ${left} large/binary/untracked file(s) were not restored: ${r.not_restored.join(', ')}`
+    : 'Change undone', !conf && !left);
+  loadChanges();
+}
+function actionHtml(a) {
+  const id = Number(a.action_id);
+  checkActions();
+  return `<div class="row" style="margin-top:6px" data-action="${id}"><span class="small">${esc(a.summary || a.kind)}</span>
+    <button class="btn" onclick="decideAction(${id}, 'confirm', this)">Confirm</button>
+    <button class="ghost" onclick="decideAction(${id}, 'cancel', this)">Cancel</button></div>`;
+}
+// replace buttons of actions that are no longer pending (one /api/actions fetch per render batch)
+let actTimer = null, actAgain = false;
+function checkActions() {
+  if (actTimer) { actAgain = true; return; }
+  actTimer = setTimeout(async () => {
+    actAgain = false;
+    const rows = [...document.querySelectorAll('[data-action]')];  // cards added mid-fetch get their own recheck
+    try {
+      const pending = new Set((await api('/api/actions')).map(a => Number(a.id)));
+      rows.forEach(row => {
+        if (row.dataset.done || pending.has(Number(row.dataset.action))) return;
+        row.dataset.done = 1;
+        row.querySelectorAll('button').forEach(b => b.remove());
+        row.insertAdjacentHTML('beforeend', '<span class="small muted">no longer pending</span>');
+      });
+    } catch {}
+    setTimeout(() => { actTimer = null; if (actAgain) checkActions(); }, 2000);
+  }, 50);
+}
+async function decideAction(id, what, btn) {
+  const row = btn.closest('[data-action]');
+  row.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  const inChat = row.closest('#chat') && conv;  // only chat cards report back; Repos/Services tabs don't
+  const summary = row.querySelector('.small').textContent;
+  const word = what === 'cancel' ? 'cancelled' : 'confirmed';
+  let report = `[Action #${id} ${word}: ${summary}`;
+  try {
+    const r = await api(`/api/actions/${id}/${what}`, {method: 'POST'});
+    const msg = what === 'cancel' ? 'cancelled' : (r.ok === false ? '⚠ ' + esc(r.error || 'failed') : '✓ done');
+    row.dataset.done = 1;
+    row.insertAdjacentHTML('beforeend', `<span class="small muted">${msg}</span>`);
+    // status only (an HTTP code at most): action output is untrusted and must not become a "user" message
+    if (what !== 'cancel') report += r.ok === false ? ` → failed: ${String(r.error || 'failed').slice(0, 200)}`
+      : ' → done' + (Number.isInteger(r.status) ? ` (HTTP ${r.status})` : '');
+  } catch (err) {
+    row.querySelectorAll('button').forEach(b => { b.disabled = false; });
+    if (what === 'cancel') return;
+    report += ` → failed: ${String(err.message).slice(0, 200)}`;
+  }
+  if (inChat) postAuto(report + ']');
+}
+async function importServices() {
+  const c = await api('/api/services/import-candidates');
+  if (!c.length) return toast('No new run_*.sh scripts found in your project folders', true);
+  $('#simport').innerHTML = `<div class="card"><b>Import services</b>${c.map((s, i) => `
+    <label class="small" style="display:flex;gap:8px;margin:6px 0"><input type="checkbox" data-i="${i}" ${s.ok ? 'checked' : ''} style="width:auto">
+    <span><b>${esc(s.name || '?')}</b> · ${esc(s.command || '')}${s.port ? ' :' + Number(s.port) : ''}<br><span class="muted">${esc(s.script_path)}</span></span></label>`).join('')}
+    <div class="row"><span></span><button class="ghost" onclick="$('#simport').innerHTML=''">Cancel</button><button class="btn" id="simportbtn">Register selected</button></div></div>`;
+  $('#simportbtn').onclick = async () => {
+    for (const box of document.querySelectorAll('#simport input:checked')) await api('/api/services', {method: 'POST', body: c[+box.dataset.i]});
+    $('#simport').innerHTML = '';
+    loadServices();
+  };
+}
+async function addService() {
+  const path = prompt('Path to the start script (run_*.sh). Leave empty to enter a folder + command instead.');
+  if (path === null) return;
+  let f;
+  if (path) f = await api('/api/services/parse', {method: 'POST', body: {script_path: path}});
+  else f = {name: prompt('Service name'), cwd: prompt('Folder'), venv: prompt('venv activate path (optional)') || '', command: prompt('Command to run')};
+  if (!f || !f.name) return;
+  f.tmux_session = f.tmux_session || f.name;
+  f.port = prompt('Port (optional)', f.port || '') || null;
+  f.depends_on = prompt('Depends on (comma-separated service names, optional)', '') || '';
+  await api('/api/services', {method: 'POST', body: f});
+  toast('Service registered', true);
+  loadServices();
+}
+setInterval(() => { if ($('#services').classList.contains('on') && !$('#ssheet').classList.contains('on')) loadServices().catch(() => {}); }, 10000);
+
+// ---------- repos ----------
+let repoCur = null, repoTimer = null;
+const runTxt = r => r ? `${r.passed}✓ ${r.failed + r.errors}✗${r.timed_out ? ' (timed out)' : ''} · ${fmt(r.created_at)}` : 'no runs yet';
+const listTxt = xs => (xs || []).map(x => `<div class="small" style="font-family:ui-monospace,monospace">${esc(x)}</div>`).join('');
+// check status other than "ok" must never read as "no regressions"
+const checkWarn = (status, error) => status && status !== 'ok'
+  ? `<div class="small" style="color:var(--warn)">⚠️ check ${esc(status === 'no_baseline' ? 'has no baseline' : status)}${error ? ': ' + esc(error) : ''}</div>` : '';
+function repoCard(r) {
+  return `<div class="card click" data-repo="${esc(r.name)}">
+    <div class="row"><b>${esc(r.name)}</b><span class="st">suite: ${esc(r.suite_status)}</span>${r.env_status === 'error' ? '<span class="st" style="color:var(--warn)">env error</span>' : ''}</div>
+    <div class="muted small">${esc(r.default_branch)} · ${runTxt(r.last_main_run)} · ${r.open_tasks.length} open task(s)</div></div>`;
+}
+async function loadRepos() {
+  const rs = await api('/api/repos');
+  $('#rlist2').innerHTML = rs.map(repoCard).join('') || '<p class="muted">No repos yet. Tap ＋ Repo or tell the assistant a GitHub URL.</p>';
+}
+document.addEventListener('click', e => { const c = e.target.closest('[data-repo]'); if (c) openRepo(c.dataset.repo); });
+async function addRepo() {
+  const url = prompt('Git URL to clone (https://github.com/…)');
+  if (!url) return;
+  const venv = prompt('Existing venv that can run the app (folder or python path, optional)') || undefined;
+  toast('Cloning…', true);
+  try { await api('/api/repos', {method: 'POST', body: {url, venv}}); } catch { return; }
+  loadRepos();
+}
+async function openRepo(name) {
+  repoCur = name;
+  $('#rtitle').textContent = name;
+  $('#rinfo').innerHTML = '';
+  $('#rsheet').classList.add('on');
+  try { await refreshRepo(); } catch {}
+  clearInterval(repoTimer);
+  repoTimer = setInterval(() => refreshRepo().catch(() => {}), 3000);
+}
+function closeRepo() { clearInterval(repoTimer); repoCur = null; $('#rsheet').classList.remove('on'); if ($('#repos').classList.contains('on')) loadRepos().catch(() => {}); }
+const diffOpen = {}, diffText = {};  // keyed by task id + head sha: the card is re-rendered every few seconds
+async function taskDiff(el, id, key) {
+  diffOpen[key] = el.open;
+  if (!el.open || diffText[key] !== undefined) return;
+  try { diffText[key] = (await api(`/api/tasks/${id}`)).diff || '(no changes)'; } catch { return; }
+  const pre = el.querySelector('pre'); if (pre) pre.textContent = diffText[key];
+}
+function taskCard(t, actions) {
+  const id = Number(t.id);
+  const inst = t.status === 'needs_package' ? (actions || []).map(a => {
+    try { const p = typeof a.payload === 'string' ? JSON.parse(a.payload) : a.payload; return a.kind === 'repo_install' && p && Number(p.task) === id ? {id: a.id, pkg: p.package} : null; } catch { return null; }
+  }).filter(Boolean) : [];
+  const dkey = `${id}:${t.head_sha || ''}`;
+  const busy = ['queued', 'testing_before', 'claude', 'testing_after'].includes(t.status);
+  const regs = (t.regressions || []).length;
+  const mc = t.merge_check;
+  const btns = [];
+  if (t.claude_session) btns.push(`<button class="ghost" onclick="closeRepo();show('claude');openSession(${Number(t.claude_session)})">Watch</button>`);
+  if (t.status === 'ready') btns.push(`<button class="btn" onclick="repoTaskAct(${id}, 'merge')">Merge to main</button>`);
+  if (t.status === 'ready' && regs + (t.new_failing || []).length) btns.push(`<button class="ghost" onclick="repoTaskAct(${id}, 'fix')">Fix regressions</button>`);
+  if (['paused_limit', 'needs_package', 'failed'].includes(t.status)) btns.push(`<button class="btn" onclick="repoTaskAct(${id}, 'fix')">Continue</button>`);
+  if (!busy && !['merged', 'discarded'].includes(t.status)) btns.push(`<button class="ghost" onclick="repoTaskAct(${id}, 'discard')">Discard</button>`);
+  return `<div class="card"><div class="row"><b>#${id} ${esc(t.request)}</b><span class="st">${esc(t.status)}${busy ? ' …' : ''}</span></div>
+    <div class="muted small">${esc(t.branch || '')} · before ${runTxt(t.before)} → after ${runTxt(t.after)}</div>
+    ${regs ? `<div class="small" style="color:var(--warn)">⚠ ${regs} regression(s) (failing or no longer running):</div>${listTxt(t.regressions)}` : ''}
+    ${(t.new_tests || []).length ? `<div class="small">new tests:</div>${listTxt(t.new_tests)}` : ''}
+    ${(t.fixed_tests || []).length ? `<div class="small">fixed:</div>${listTxt(t.fixed_tests)}` : ''}
+    ${t.error ? `<div class="small" style="color:var(--warn)">${esc(t.error)}</div>` : ''}
+    ${t.env_warning ? `<div class="small" style="color:var(--warn)">${esc(t.env_warning)}</div>` : ''}
+    ${t.summary ? `<div class="small">${md(t.summary)}</div>` : ''}
+    ${mc ? `<div class="small">merge check: ${mc.tests ? runTxt(mc.tests) : 'no result'}${mc.status === 'ok' && mc.vs_main && mc.vs_main.regressions.length ? ` · <span style="color:var(--warn)">regressions vs main: ${esc(mc.vs_main.regressions.join(', '))}</span>` : ''}</div>${checkWarn(mc.status, mc.error)}` : ''}
+    ${inst.map(a => `<div class="row small"><span>pip install ${esc(a.pkg)}</span><span><button class="btn" onclick="repoAction(${Number(a.id)}, 'confirm')">Confirm install</button> <button class="ghost" onclick="repoAction(${Number(a.id)}, 'cancel')">Cancel</button></span></div>`).join('')}
+    ${t.diff_stat ? `<details><summary class="small">diff stat</summary><pre class="small">${esc(t.diff_stat)}</pre></details>` : ''}
+    ${t.branch && t.status !== 'discarded' ? `<details ${diffOpen[dkey] ? 'open' : ''} ontoggle="taskDiff(this, ${id}, '${dkey}')"><summary class="small">full diff</summary><pre class="small" style="overflow:auto">${esc(diffText[dkey] ?? 'loading…')}</pre></details>` : ''}
+    <div class="row" style="margin-top:6px"><span></span>${btns.join('')}</div></div>`;
+}
+async function refreshRepo() {
+  if (!repoCur) return;
+  const name = repoCur;
+  const [r, tasks, actions] = await Promise.all([api(`/api/repos/${encodeURIComponent(name)}`), api(`/api/repos/${encodeURIComponent(name)}/tasks`), api('/api/actions')]);
+  if (repoCur !== name) return;
+  const lp = r.last_pull;
+  $('#rstate').textContent = `suite: ${r.suite_status}`;
+  const suiteBtns = r.suite_status === 'proposed'
+    ? `<button class="btn" onclick="repoSuite('accept')">Accept suite</button> <button class="ghost" onclick="repoSuite('build')">Rebuild</button>`
+    : r.suite_status === 'building' ? '<span class="muted small">Claude is writing tests…</span>'
+    : `<button class="ghost" onclick="repoSuite('build')">${r.suite_status === 'accepted' ? 'Extend / rebuild' : 'Build test suite'}</button>`;
+  $('#rsuite').innerHTML = `<div class="card"><div class="small">${esc(r.path)} · venv ${esc(r.venv_python)}</div>
+    ${r.env_status === 'error' ? `<div class="small" style="color:var(--warn)">environment problem:</div><pre class="small">${esc(r.env_error || '')}</pre>` : ''}
+    ${r.suite_error ? `<div class="small" style="color:var(--warn)">${esc(r.suite_error)}</div>` : ''}
+    ${r.suite_diff_stat ? `<details><summary class="small">suite changes</summary><pre class="small">${esc(r.suite_diff_stat)}</pre></details>` : ''}
+    ${r.known_failures.length ? `<div class="small">known failures (ignored):</div>${listTxt(r.known_failures)}` : ''}
+    ${lp && lp.changed ? `<div class="small">last pull: ${esc((lp.commits || []).length + ' commit(s)')}${lp.check === 'ok' && (lp.regressions || []).length ? ` · <span style="color:var(--warn)">regressions: ${esc(lp.regressions.join(', '))}</span>` : ''}</div>${checkWarn(lp.check, lp.error)}${lp.summary ? `<div class="small">${md(lp.summary)}</div>` : ''}` : ''}
+    <div class="row" style="margin-top:6px"><span></span>${suiteBtns}</div></div>`;
+  $('#rtasks').innerHTML = tasks.map(t => taskCard(t, actions)).join('') || '<p class="muted small">No tasks yet.</p>';
+  $('#rruns').innerHTML = r.runs.map(x => `<div class="small muted">${esc(x.kind)} · ${esc(x.ref)} · ${runTxt(x)}</div>`).join('') || '<p class="muted small">No runs yet.</p>';
+}
+async function repoSuite(what) {
+  if (!repoCur) return;
+  try {
+    if (what === 'accept') await api(`/api/repos/${encodeURIComponent(repoCur)}/suite/accept`, {method: 'POST'});
+    else await api(`/api/repos/${encodeURIComponent(repoCur)}/suite`, {method: 'POST', body: {focus: prompt('Anything to focus on? (optional)') || undefined}});
+  } catch { return; }
+  refreshRepo().catch(() => {});
+}
+async function newRepoTask(e) {
+  e.preventDefault();
+  const request = $('#rtask').value.trim();
+  if (!request || !repoCur) return;
+  try { await api(`/api/repos/${encodeURIComponent(repoCur)}/tasks`, {method: 'POST', body: {request}}); } catch { return; }
+  $('#rtask').value = '';
+  refreshRepo().catch(() => {});
+}
+async function repoTaskAct(id, what) {
+  if (what === 'merge' && !confirm('Merge this task into main (local) and re-run the tests?')) return;
+  if (what === 'discard' && !confirm('Delete this task branch?')) return;
+  $('#rinfo').innerHTML = `<p class="muted small">${esc(what)}…</p>`;
+  try {
+    const r = await api(`/api/tasks/${id}/${what}`, {method: 'POST'});
+    const c = r.check;
+    const regs = c && c.status === 'ok' && c.vs_main ? c.vs_main.regressions : [];
+    $('#rinfo').innerHTML = (regs.length ? `<p class="small" style="color:var(--warn)">Merged, but ${regs.length} test(s) regressed vs main (failing or no longer running) — consider Undo merge.</p>` : '')
+      + (c ? checkWarn(c.status, c.error) : '');
+  } catch { $('#rinfo').innerHTML = ''; }
+  refreshRepo().catch(() => {});
+}
+async function repoAction(aid, what) {
+  try { await api(`/api/actions/${aid}/${what}`, {method: 'POST'}); } catch { return; }
+  refreshRepo().catch(() => {});
+}
+async function repoAct(what) {
+  if (!repoCur) return;
+  if (what === 'push' && !confirm(`Push ${repoCur}'s main branch to origin?`)) return;
+  if (what === 'undo-merge' && !confirm('Undo the last assistant merge (reset main to before it)?')) return;
+  $('#rinfo').innerHTML = `<p class="muted small">${esc(what)}…</p>`;
+  try {
+    const r = await api(`/api/repos/${encodeURIComponent(repoCur)}/${what}`, {method: 'POST', body: {}});
+    $('#rinfo').innerHTML = what === 'test' ? `<p class="small">${runTxt(r)}</p>${listTxt(r.failing)}`
+      : what === 'pull' ? `<p class="small">${r.changed ? `${(r.commits || []).length} new commit(s)` : 'Already up to date'}${r.check === 'ok' && r.regressions && r.regressions.length ? ` · <span style="color:var(--warn)">regressions: ${esc(r.regressions.join(', '))}</span>` : ''}</p>${checkWarn(r.check, r.error)}`
+      : `<p class="small">${esc(JSON.stringify(r).slice(0, 300))}</p>`;
+  } catch { $('#rinfo').innerHTML = ''; }
+  refreshRepo().catch(() => {});
+}
+
+// ---------- terminal ----------
+const XTERM = 'https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/', FITJS = 'https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js';
+const TKEYS = {esc: '\x1b', tab: '\t', up: '\x1b[A', down: '\x1b[B', right: '\x1b[C', left: '\x1b[D', c: '\x03', d: '\x04'};
+let term = null, fitAddon = null, tws = null, tcur = null, tctrl = false, tlist = [], tlibs = null;
+
+function loadScript(src) {
+  return new Promise((ok, bad) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = ok; s.onerror = () => bad(new Error('could not load ' + src));
+    document.head.append(s);
+  });
+}
+function termLibs() {  // loaded on first use so the rest of the app never depends on the CDN
+  if (!tlibs) {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = XTERM + 'css/xterm.min.css'; document.head.append(css);
+    tlibs = loadScript(XTERM + 'lib/xterm.min.js').then(() => loadScript(FITJS)).catch(e => { tlibs = null; throw e; });
+  }
+  return tlibs;
+}
+function termSend(msg) { if (tws && tws.readyState === 1) tws.send(JSON.stringify(msg)); }
+function termFit() {
+  if (!term || !$('#terminal').classList.contains('on') || !$('#tbox').clientWidth) return;
+  fitAddon.fit();
+  termSend({t: 'resize', cols: term.cols, rows: term.rows});
+}
+function termKey(d) {  // sticky Ctrl: the next single character becomes a control character
+  if (tctrl && d.length === 1) {
+    const c = d.toUpperCase().charCodeAt(0);
+    if (c >= 64 && c <= 95) d = String.fromCharCode(c - 64);
+  }
+  if (tctrl) { tctrl = false; $('#tctrl').classList.remove('on'); }
+  termSend({t: 'in', d});
+}
+function initTerm() {
+  term = new Terminal({cursorBlink: true, fontSize: 14, fontFamily: 'ui-monospace,Menlo,monospace', theme: {background: '#0b0d12'}});
+  fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open($('#tbox'));
+  term.onData(termKey);
+  window.addEventListener('resize', termFit);
+  new ResizeObserver(termFit).observe($('#tbox'));
+}
+function termDrop() {  // close the websocket only; the tmux session keeps running
+  const w = tws; tws = null;
+  if (w) { w.onclose = null; w.close(); }
+}
+function termConnect(name) {
+  termDrop();
+  tcur = name;
+  term.reset();
+  $('#tdisc').hidden = true;
+  renderTabs();
+  const ws = tws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/terminals/${name}/ws`);
+  ws.onopen = () => { termFit(); term.focus(); };
+  ws.onmessage = e => term.write(e.data);
+  ws.onclose = e => {
+    if (tws !== ws) return;
+    tws = null;
+    if (e.code === 4401) loadTerminal().catch(() => {});  // unlock expired: status check shows the form
+    else $('#tdisc').hidden = false;
+  };
+}
+function renderTabs() {
+  $('#ttabs').innerHTML = tlist.map(t => `<button class="chip ${t.name === tcur ? 'on' : ''}" data-t="${esc(t.name)}">${esc(t.name)} <span data-x="${esc(t.name)}">✕</span></button>`).join('')
+    + '<button class="chip" onclick="newTerm()">＋ New</button>';
+}
+async function refreshTerms() {
+  tlist = await api('/api/terminals');
+  if (!tlist.length) tlist = [await api('/api/terminals', {method: 'POST'})];
+  if (!tlist.some(t => t.name === tcur)) { termDrop(); tcur = tlist[0].name; }
+  renderTabs();
+}
+async function loadTerminal() {
+  const s = await api('/api/terminal/status');
+  $('#tlock').hidden = s.unlocked; $('#tmain').hidden = !s.unlocked;
+  if (!s.unlocked) { termDrop(); if (term) term.reset(); return; }
+  try { await termLibs(); } catch (e) { toast(e.message); return; }
+  if (!term) initTerm();
+  await refreshTerms();
+  if (!tws) termConnect(tcur);  // leaving the view keeps the socket open, so only reconnect when it is gone
+  termFit();
+}
+async function unlockTerm(e) {
+  e.preventDefault();
+  const r = await fetch('/api/terminal/unlock', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({password: $('#tpw').value})});
+  $('#tpw').value = '';
+  const data = await r.json().catch(() => ({}));
+  if (r.ok) return loadTerminal();
+  if (data.detail === 'login required') { location = '/login'; return; }
+  toast(data.detail || r.statusText);  // a wrong password is also 401, so api() cannot be used here
+}
+async function lockTerm() {
+  await api('/api/terminal/lock', {method: 'POST'});
+  loadTerminal();
+}
+async function newTerm() {
+  const t = await api('/api/terminals', {method: 'POST'});
+  await refreshTerms();
+  termConnect(t.name);
+}
+async function closeTerm(name) {
+  if (!confirm(`Close ${name}? Whatever is running in it will stop.`)) return;
+  await api(`/api/terminals/${encodeURIComponent(name)}`, {method: 'DELETE'});
+  if (name === tcur) { termDrop(); tcur = null; }
+  await refreshTerms();
+  if (!tws) termConnect(tcur);
+}
+document.addEventListener('click', e => {
+  const x = e.target.closest('[data-x]');
+  if (x) { closeTerm(x.dataset.x).catch(() => {}); return; }
+  const t = e.target.closest('[data-t]');
+  if (t && t.dataset.t !== tcur) termConnect(t.dataset.t);
+});
+$('#tkeys').addEventListener('pointerdown', e => e.preventDefault());  // keep the keyboard open on phones
+$('#tkeys').addEventListener('click', async e => {
+  const k = e.target.closest('[data-k]')?.dataset.k;
+  if (!k) return;
+  if (k === 'ctrl') { tctrl = !tctrl; $('#tctrl').classList.toggle('on', tctrl); }
+  else if (k === 'paste') {
+    let text = null;
+    try { text = await navigator.clipboard.readText(); } catch { text = prompt('Paste text to send'); }
+    if (text) term.paste(text);
+  } else termSend({t: 'in', d: TKEYS[k]});
+  term.focus();
+});
+
+// ---------- status ----------
+async function refreshStatus() {
+  const s = await api('/api/status');
+  TZ = s.timezone;
+  const out = Object.entries(s.exhausted);
+  $('#model').textContent = (s.model || 'no model yet') + (out.length ? ` · ${out.length} out of quota` : '');
+  $('#model').title = out.map(([m, t]) => `${m} until ${fmt(new Date(t * 1000).toISOString())}`).join('\n') || 'All models available';
+}
+async function logout() { await fetch('/logout', {method: 'POST'}); location = '/login'; }
+async function pollDue() { try { const r = await fetch('/api/today'); if (r.ok) setBadge((await r.json()).reminders); } catch {} }
+
+refreshStatus().finally(() => show(location.hash.slice(1) || 'chat'));
+pollDue(); setInterval(pollDue, 60000);
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+.env
+assistant.db*
+assistant.log
+backups/
+.venv/
+__pycache__/
+.pytest_cache/
+test_copies/
+workspace/
